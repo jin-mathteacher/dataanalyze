@@ -22,7 +22,21 @@
                     <input type="number" id="team-size" min="1" max="20" value="4" placeholder="인원 수">
                     <label for="teacher-names" style="margin-top: 20px;">선생님 이름을 입력해주세요 (쉼표로 구분):</label>
                     <input type="text" id="teacher-names" placeholder="예: 홍길동, 김철수, 이영희, 박민수" style="width: 100%; max-width: 400px;">
-                    <button id="start-btn" class="btn btn-primary">시작하기</button>
+                    <button id="setup-btn" class="btn btn-primary">조장 뽑기 진행</button>
+                </div>
+            </div>
+            
+            <!-- 조장 룰렛 게임 -->
+            <div id="roulette-section" class="roulette-section hidden">
+                <div class="card">
+                    <h2>🎰 조장 뽑기 룰렛</h2>
+                    <div class="roulette-container">
+                        <div id="roulette-wheel" class="roulette-wheel"></div>
+                        <div id="roulette-pointer" class="roulette-pointer">▼</div>
+                    </div>
+                    <button id="spin-roulette-btn" class="btn btn-primary btn-large">룰렛 돌리기 🎰</button>
+                    <div id="roulette-result" class="roulette-result hidden"></div>
+                    <button id="start-practice-btn" class="btn btn-primary hidden" style="margin-top: 20px;">1단계로 진행하기</button>
                 </div>
             </div>
         </div>
@@ -47,7 +61,7 @@
             <!-- 2단계: 데이터 살펴보기 -->
             <div id="step2-content" class="step-content hidden">
                 <div class="card">
-                    <h2>📊 2단계: 데이터 살펴보기</h2>
+                    <h2>📊 2단계: 데이터 살펴보기 <span id="step2-subject" class="subject-badge"></span></h2>
                     <div id="data-content" class="data-content"></div>
                     <button id="next-step2" class="btn btn-primary">데이터를 충분히 보셨다면, 3단계 분석으로 넘어갑니다.</button>
                 </div>
@@ -55,41 +69,42 @@
 
             <!-- 3단계: 학생 특성 분석 -->
             <div id="step3-content" class="step-content hidden">
-                <div class="card">
-                    <h2>🔍 3단계: 학생 특성 분석</h2>
-                    <div id="teacher-selection-section">
-                        <div class="selection-intro">
-                            <p>답변을 작성하기 전에 먼저 각 문항에 답변할 선생님을 선정합니다.</p>
-                        </div>
-                        <button id="select-teachers-btn" class="btn btn-primary btn-large">🎲 선생님 선정하기</button>
-                        <div id="teacher-selection-animation" class="teacher-selection-animation hidden"></div>
-                        <div id="selected-teachers" class="selected-teachers hidden"></div>
+                <div class="step3-layout">
+                    <!-- 왼쪽 사이드바: CASE 및 데이터 정보 -->
+                    <div class="step3-sidebar">
+                        <div id="step3-case-info" class="sidebar-section"></div>
+                        <div id="step3-data-info" class="sidebar-section"></div>
                     </div>
-                    <div id="answer-section" class="answer-section hidden">
-                        <div class="checklist">
-                            <div class="checklist-item">
-                                <label id="label1">1. (학습 태도) 데이터에서 발견된 가장 큰 학습 저해 요인은 무엇인가요?</label>
-                                <textarea id="answer1" rows="3" placeholder="답변을 입력해주세요..."></textarea>
+                    
+                    <!-- 오른쪽 메인 영역: 답변 작성 및 분석 -->
+                    <div class="step3-main">
+                        <div class="card">
+                            <h2>🔍 3단계: 학생 특성 분석</h2>
+                            <div class="checklist">
+                                <div class="checklist-item">
+                                    <label>1. (학습 태도) 데이터에서 발견된 가장 큰 학습 저해 요인은 무엇인가요?</label>
+                                    <textarea id="answer1" rows="3" placeholder="답변을 입력해주세요..."></textarea>
+                                </div>
+                                <div class="checklist-item">
+                                    <label>2. (정서/심리) 학생의 숨겨진 강점이나 잠재력은 무엇인가요?</label>
+                                    <textarea id="answer2" rows="3" placeholder="답변을 입력해주세요..."></textarea>
+                                </div>
+                                <div class="checklist-item">
+                                    <label>3. (데이터 연결) 정량적 수치와 정성적 관찰 내용이 일치하나요, 아니면 모순되나요? 그 이유는?</label>
+                                    <textarea id="answer3" rows="3" placeholder="답변을 입력해주세요..."></textarea>
+                                </div>
                             </div>
-                            <div class="checklist-item">
-                                <label id="label2">2. (정서/심리) 학생의 숨겨진 강점이나 잠재력은 무엇인가요?</label>
-                                <textarea id="answer2" rows="3" placeholder="답변을 입력해주세요..."></textarea>
-                            </div>
-                            <div class="checklist-item">
-                                <label id="label3">3. (데이터 연결) 정량적 수치와 정성적 관찰 내용이 일치하나요, 아니면 모순되나요? 그 이유는?</label>
-                                <textarea id="answer3" rows="3" placeholder="답변을 입력해주세요..."></textarea>
-                            </div>
+                            <button id="submit-analysis" class="btn btn-primary">분석 제출하기</button>
+                            <div id="analysis-feedback" class="feedback hidden"></div>
+                            <div id="final-message" class="final-message hidden"></div>
                         </div>
-                        <button id="submit-analysis" class="btn btn-primary">분석 제출하기</button>
                     </div>
-                    <div id="analysis-feedback" class="feedback hidden"></div>
-                    <div id="final-message" class="final-message hidden"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script> 
+    <script src="script.js"></script>
 </body>
 </html>
 

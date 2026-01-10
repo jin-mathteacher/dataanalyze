@@ -124,6 +124,10 @@ let currentCase = null;
 let currentStep = 0;
 let teamSize = 4;
 let teacherNames = [];
+let selectedSubject = null; // 랜덤으로 선택된 과목
+
+// 과목 목록
+const subjects = ['국어', '수학', '영어', '사회', '과학'];
 
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
@@ -132,15 +136,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 이벤트 리스너 설정
 function setupEventListeners() {
-    document.getElementById('start-btn').addEventListener('click', startPractice);
+    document.getElementById('setup-btn').addEventListener('click', setupTeam);
+    document.getElementById('spin-roulette-btn').addEventListener('click', spinRoulette);
+    document.getElementById('start-practice-btn').addEventListener('click', startPractice);
     document.getElementById('next-step1').addEventListener('click', () => goToStep(2));
     document.getElementById('next-step2').addEventListener('click', () => goToStep(3));
-    document.getElementById('select-teachers-btn').addEventListener('click', selectTeachers);
     document.getElementById('submit-analysis').addEventListener('click', submitAnalysis);
 }
 
-// 실습 시작
-function startPractice() {
+let selectedLeader = null;
+
+// 모둠 설정 확인
+function setupTeam() {
     teamSize = parseInt(document.getElementById('team-size').value) || 4;
     
     // 선생님 이름 파싱
@@ -163,13 +170,128 @@ function startPractice() {
         teacherNames = teacherNames.slice(0, teamSize);
     }
     
+    // 룰렛 생성 및 표시
+    createRoulette();
+    document.getElementById('setup-phase').querySelector('.input-group').style.display = 'none';
+    document.getElementById('roulette-section').classList.remove('hidden');
+}
+
+// 룰렛 생성
+function createRoulette() {
+    const roulette = document.getElementById('roulette-wheel');
+    roulette.innerHTML = '';
+    
+    const numSegments = teacherNames.length;
+    const anglePerSegment = 360 / numSegments;
+    const colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+        '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#82E0AA',
+        '#F1948A', '#85C1E9', '#F7DC6F', '#A8E6CF', '#FFD3A5'
+    ];
+    
+    teacherNames.forEach((name, index) => {
+        const segment = document.createElement('div');
+        segment.className = 'roulette-segment';
+        
+        const startAngle = anglePerSegment * index;
+        const midAngle = startAngle + anglePerSegment / 2;
+        
+        // 배경색 설정
+        segment.style.backgroundColor = colors[index % colors.length];
+        
+        // 각 세그먼트를 원형으로 배치하기 위한 계산
+        const radius = 50; // 퍼센트
+        const centerAngle = midAngle * Math.PI / 180;
+        
+        // 텍스트 위치 계산 (원의 65% 지점)
+        const textX = 50 + 35 * Math.cos(centerAngle - Math.PI / 2);
+        const textY = 50 + 35 * Math.sin(centerAngle - Math.PI / 2);
+        
+        segment.style.background = `conic-gradient(from ${startAngle}deg, ${colors[index % colors.length]} 0deg, ${colors[index % colors.length]} ${anglePerSegment}deg, transparent ${anglePerSegment}deg)`;
+        segment.innerHTML = `<span style="position: absolute; left: ${textX}%; top: ${textY}%; transform: translate(-50%, -50%) rotate(${midAngle + 90}deg);">${name}</span>`;
+        
+        roulette.appendChild(segment);
+    });
+    
+    // 모든 세그먼트를 하나로 합치기 위해 conic-gradient 사용
+    const conicColors = teacherNames.map((name, i) => {
+        const color = colors[i % colors.length];
+        const start = (360 / numSegments) * i;
+        const end = (360 / numSegments) * (i + 1);
+        return `${color} ${start}deg ${end}deg`;
+    }).join(', ');
+    
+    roulette.style.background = `conic-gradient(${conicColors})`;
+    roulette.innerHTML = '';
+    
+    // 텍스트 오버레이 추가
+    teacherNames.forEach((name, index) => {
+        const text = document.createElement('div');
+        text.className = 'roulette-text';
+        const midAngle = (360 / numSegments) * index + (360 / numSegments) / 2;
+        const textAngle = (midAngle - 90) * Math.PI / 180;
+        const textX = 50 + 35 * Math.cos(textAngle);
+        const textY = 50 + 35 * Math.sin(textAngle);
+        text.style.left = `${textX}%`;
+        text.style.top = `${textY}%`;
+        text.style.transform = `translate(-50%, -50%) rotate(${midAngle + 90}deg)`;
+        text.textContent = name;
+        roulette.appendChild(text);
+    });
+}
+
+// 룰렛 돌리기
+async function spinRoulette() {
+    const spinBtn = document.getElementById('spin-roulette-btn');
+    const roulette = document.getElementById('roulette-wheel');
+    const resultDiv = document.getElementById('roulette-result');
+    const startBtn = document.getElementById('start-practice-btn');
+    
+    spinBtn.disabled = true;
+    spinBtn.textContent = '돌리는 중...';
+    
+    // 랜덤 각도 계산 (최소 3바퀴 이상)
+    const spins = 3 + Math.random() * 3;
+    const randomIndex = Math.floor(Math.random() * teacherNames.length);
+    const angle = 360 / teacherNames.length;
+    const finalAngle = spins * 360 + (360 - randomIndex * angle - angle / 2);
+    
+    // 애니메이션
+    roulette.style.transition = 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+    roulette.style.transform = `rotate(${finalAngle}deg)`;
+    
+    await sleep(3000);
+    
+    selectedLeader = teacherNames[randomIndex];
+    
+    resultDiv.innerHTML = `
+        <div class="leader-result">
+            <h3>🎉 조장 선정 완료!</h3>
+            <p class="leader-name">조장: <strong>${selectedLeader}</strong> 선생님</p>
+        </div>
+    `;
+    resultDiv.classList.remove('hidden');
+    startBtn.classList.remove('hidden');
+    spinBtn.disabled = false;
+    spinBtn.textContent = '룰렛 다시 돌리기 🎰';
+}
+
+// 실습 시작
+function startPractice() {
     // 랜덤 케이스 선택
     currentCase = studentCases[Math.floor(Math.random() * studentCases.length)];
+    
+    // 랜덤 과목 선택
+    selectedSubject = subjects[Math.floor(Math.random() * subjects.length)];
+    
     currentStep = 1;
 
     // 화면 전환
     document.getElementById('setup-phase').classList.add('hidden');
     document.getElementById('main-phase').classList.remove('hidden');
+
+    // 배경 변경 (1단계: 교실 느낌)
+    document.body.className = 'step-1';
 
     // 1단계 표시
     displayStep1();
@@ -188,9 +310,15 @@ function displayStep1() {
 
 // 2단계: 데이터 살펴보기
 function displayStep2() {
+    // 제목 옆에 과목명 표시
+    const subjectBadge = document.getElementById('step2-subject');
+    if (subjectBadge && selectedSubject) {
+        subjectBadge.textContent = `[${selectedSubject}]`;
+    }
+    
     const content = document.getElementById('data-content');
     
-    let quantitativeHTML = '<div class="data-section"><h3>📈 정량 데이터</h3><table class="data-table"><thead><tr><th>항목</th><th>학생 수치</th><th>평균</th></tr></thead><tbody>';
+    let quantitativeHTML = `<div class="data-section"><h3>📈 정량 데이터</h3><table class="data-table"><thead><tr><th>항목</th><th>학생 수치</th><th>평균</th></tr></thead><tbody>`;
     
     // LMS 접속률
     if (currentCase.quantitative.lms_access) {
@@ -244,13 +372,129 @@ function displayStep2() {
     
     quantitativeHTML += '</tbody></table></div>';
     
+    // 과목별 정성 데이터 생성
+    const qualitativeData = getQualitativeDataBySubject(currentCase, selectedSubject);
+    
     let qualitativeHTML = '<div class="data-section"><h3>📝 정성 데이터</h3><ul class="data-list">';
-    currentCase.qualitative.forEach(item => {
+    qualitativeData.forEach(item => {
         qualitativeHTML += `<li><strong>(${item.type})</strong> ${item.content}</li>`;
     });
     qualitativeHTML += '</ul></div>';
     
     content.innerHTML = quantitativeHTML + qualitativeHTML;
+}
+
+// 과목별 정성 데이터 생성 함수
+function getQualitativeDataBySubject(caseData, subject) {
+    const originalQualitative = caseData.qualitative;
+    const subjectQualitative = [];
+    
+    // 각 정성 데이터 항목을 과목에 맞게 변환
+    originalQualitative.forEach((item, index) => {
+        let newContent = item.content;
+        
+        // 케이스별, 과목별 변환 로직
+        if (caseData.id === 'A') {
+            if (index === 0) { // 관찰
+                const subjectExpressions = {
+                    '국어': '"국어는 왜 배우는지 모르겠어요"라고 자주 말함.',
+                    '수학': '"수학은 왜 배우는지 모르겠어요"라고 자주 말함.',
+                    '영어': '"영어는 왜 배우는지 모르겠어요"라고 자주 말함.',
+                    '사회': '"사회는 왜 배우는지 모르겠어요"라고 자주 말함.',
+                    '과학': '"과학은 왜 배우는지 모르겠어요"라고 자주 말함.'
+                };
+                newContent = subjectExpressions[subject] || item.content;
+            }
+        } else if (caseData.id === 'B') {
+            if (index === 0) { // 관찰
+                const subjectExpressions = {
+                    '국어': '작문이나 문법 문제를 틀리면 얼굴이 빨개지고 당황함. 필기는 완벽함.',
+                    '수학': '문제를 틀리면 얼굴이 빨개지고 당황함. 필기는 완벽함.',
+                    '영어': '영작이나 문법 문제를 틀리면 얼굴이 빨개지고 당황함. 필기는 완벽함.',
+                    '사회': '서술형 문제를 틀리면 얼굴이 빨개지고 당황함. 필기는 완벽함.',
+                    '과학': '실험 문제나 계산 문제를 틀리면 얼굴이 빨개지고 당황함. 필기는 완벽함.'
+                };
+                newContent = subjectExpressions[subject] || item.content;
+            } else if (index === 1) { // AI 분석
+                const subjectExpressions = {
+                    '국어': `${subject} 과목의 기본 개념 이해도는 높으나 응용 문제(문학 작품 해석, 서술형)에서 막힘.`,
+                    '수학': `${subject} 과목의 기본 개념 이해도는 높으나 응용 문제에서 막힘.`,
+                    '영어': `${subject} 과목의 기본 개념 이해도는 높으나 응용 문제(영작, 독해)에서 막힘.`,
+                    '사회': `${subject} 과목의 기본 개념 이해도는 높으나 응용 문제(서술형, 자료 해석)에서 막힘.`,
+                    '과학': `${subject} 과목의 기본 개념 이해도는 높으나 응용 문제(실험 분석, 문제 해결)에서 막힘.`
+                };
+                newContent = subjectExpressions[subject] || item.content;
+            }
+        } else if (caseData.id === 'C') {
+            if (index === 0) { // 관찰
+                const subjectExpressions = {
+                    '국어': `${subject} 과목 조별 활동(토론, 발표)에서는 리더십을 발휘하지만, 개별 과제(독서록, 작문)는 미루는 경향.`,
+                    '수학': `${subject} 과목 조별 활동(문제 해결 프로젝트)에서는 리더십을 발휘하지만, 개별 과제(문제 풀이)는 미루는 경향.`,
+                    '영어': `${subject} 과목 조별 활동(회화, 역할극)에서는 리더십을 발휘하지만, 개별 과제(영작, 단어 암기)는 미루는 경향.`,
+                    '사회': `${subject} 과목 조별 활동(발표, 토론)에서는 리더십을 발휘하지만, 개별 과제(보고서 작성)는 미루는 경향.`,
+                    '과학': `${subject} 과목 조별 활동(실험, 프로젝트)에서는 리더십을 발휘하지만, 개별 과제(실험 보고서)는 미루는 경향.`
+                };
+                newContent = subjectExpressions[subject] || item.content;
+            }
+        } else if (caseData.id === 'D') {
+            if (index === 0) { // 관찰
+                const subjectExpressions = {
+                    '국어': `${subject} 과목의 창의적 글쓰기나 독후활동에서는 뛰어난 창의성 발휘.`,
+                    '수학': `${subject} 과목의 프로젝트나 탐구 과제에서는 뛰어난 창의성 발휘.`,
+                    '영어': `${subject} 과목의 창의적 영작이나 역할극에서는 뛰어난 창의성 발휘.`,
+                    '사회': `${subject} 과목의 프로젝트나 발표 과제에서는 뛰어난 창의성 발휘.`,
+                    '과학': `${subject} 과목의 실험 설계나 탐구 프로젝트에서는 뛰어난 창의성 발휘.`
+                };
+                newContent = subjectExpressions[subject] || item.content;
+            } else if (index === 1) { // AI 분석
+                const subjectExpressions = {
+                    '국어': `${subject} 과목에서 다양한 관점에서 접근하지만, 정형화된 답안(문법, 문학 해석) 작성에 어려움.`,
+                    '수학': `${subject} 과목에서 다양한 해결 방법을 시도하지만, 정형화된 답안(공식 적용) 작성에 어려움.`,
+                    '영어': `${subject} 과목에서 다양한 표현을 시도하지만, 정형화된 답안(문법, 번역) 작성에 어려움.`,
+                    '사회': `${subject} 과목에서 다양한 관점으로 분석하지만, 정형화된 답안(서술형) 작성에 어려움.`,
+                    '과학': `${subject} 과목에서 다양한 실험 방법을 고려하지만, 정형화된 답안(계산 문제) 작성에 어려움.`
+                };
+                newContent = subjectExpressions[subject] || item.content;
+            } else if (index === 2) { // 상담 기록
+                newContent = `"${subject} 과제에서 제 방식으로 표현하고 싶은데 점수가 안 나와요"라고 말함.`;
+            }
+        } else if (caseData.id === 'E') {
+            if (index === 0) { // 관찰
+                const subjectExpressions = {
+                    '국어': `${subject} 과목 노트 필기를 매우 상세하게 하지만 핵심 개념(문법, 작문 기법)을 파악하지 못함.`,
+                    '수학': `${subject} 과목 노트 필기를 매우 상세하게 하지만 핵심 개념(공식, 문제 해결 전략)을 파악하지 못함.`,
+                    '영어': `${subject} 과목 노트 필기를 매우 상세하게 하지만 핵심 개념(문법, 어휘 활용)을 파악하지 못함.`,
+                    '사회': `${subject} 과목 노트 필기를 매우 상세하게 하지만 핵심 개념(개념 이해, 서술형 답안 작성법)을 파악하지 못함.`,
+                    '과학': `${subject} 과목 노트 필기를 매우 상세하게 하지만 핵심 개념(개념, 실험 원리)을 파악하지 못함.`
+                };
+                newContent = subjectExpressions[subject] || item.content;
+            } else if (index === 1) { // AI 분석
+                const subjectExpressions = {
+                    '국어': `${subject} 과목에서 반복 학습은 많으나 이해도는 낮음. 학습 패턴 최적화 필요.`,
+                    '수학': `${subject} 과목에서 반복 학습은 많으나 이해도는 낮음. 학습 패턴 최적화 필요.`,
+                    '영어': `${subject} 과목에서 반복 학습은 많으나 이해도는 낮음. 학습 패턴 최적화 필요.`,
+                    '사회': `${subject} 과목에서 반복 학습은 많으나 이해도는 낮음. 학습 패턴 최적화 필요.`,
+                    '과학': `${subject} 과목에서 반복 학습은 많으나 이해도는 낮음. 학습 패턴 최적화 필요.`
+                };
+                newContent = subjectExpressions[subject] || item.content;
+            } else if (index === 2) { // 상담 기록
+                newContent = `"${subject} 과목을 열심히 하는데 왜 점수가 안 오를까요?"라고 고민함.`;
+            }
+        } else if (caseData.id === 'F') {
+            if (index === 0) { // 관찰
+                newContent = `${subject} 과목 온라인 수업 중 질문을 하지 않고 수동적으로 참여.`;
+            } else if (index === 1) { // 상담 기록
+                newContent = `"${subject} 과목 과제를 컴퓨터로 제출하는 게 어려워요"라고 말함.`;
+            }
+        }
+        
+        subjectQualitative.push({
+            type: item.type,
+            content: newContent
+        });
+    });
+    
+    return subjectQualitative;
 }
 
 // 답변 품질 평가 함수
@@ -629,6 +873,195 @@ function getEducationalAnalysis(caseId) {
     return analyses[caseId] || { title: '교육학자 관점 분석', content: '<p>분석 내용이 준비되지 않았습니다.</p>' };
 }
 
+// 전문적인 교육학자 의견서 생성
+function generateExpertOpinion(answers) {
+    const expertOpinion = getExpertAnalysis(currentCase.id, selectedSubject, answers);
+    return expertOpinion;
+}
+
+// 교육학자 관점에서의 전문적이고 날카로운 분석
+function getExpertAnalysis(caseId, subject, userAnswers) {
+    let opinionHTML = `
+        <div class="expert-opinion">
+            <h3>🎓 교육학자 전문 의견서</h3>
+            <div class="opinion-header">
+                <p><strong>분석 대상:</strong> Case ${currentCase.id}. ${currentCase.name} (${currentCase.grade}, ${currentCase.gender}) - ${subject} 과목</p>
+                <p><strong>분석 일자:</strong> ${new Date().toLocaleDateString('ko-KR')}</p>
+            </div>
+    `;
+    
+    // 1. 제시된 답변에 대한 날카로운 비판 및 평가
+    opinionHTML += `
+        <div class="opinion-section">
+            <h4>1. 제시된 분석에 대한 전문가 평가</h4>
+    `;
+    
+    userAnswers.forEach((answer, index) => {
+        const eval = evaluateAnswerQuality(answer.answer, `question${index + 1}`);
+        const questionLabels = ['학습 저해 요인', '숨겨진 강점/잠재력', '데이터 연결성'];
+        
+        opinionHTML += `
+            <div class="answer-evaluation">
+                <h5>${index + 1}. ${questionLabels[index]} 분석</h5>
+                <div class="user-answer-box">
+                    <strong>제시된 분석:</strong>
+                    <p>${answer.answer || '(분석 없음)'}</p>
+                </div>
+        `;
+        
+        if (eval.quality === 'poor') {
+            opinionHTML += `
+                <div class="expert-critique negative">
+                    <strong>⚠️ 비판적 평가:</strong>
+                    <p>제시된 분석은 구체성과 깊이가 부족합니다. 데이터와의 연결성이 약하며, 교육학적 근거가 명확하지 않습니다. 
+                    ${subject} 과목의 특성을 고려한 구체적인 분석이 필요합니다.</p>
+                    <p><strong>개선 방향:</strong> 정량적 수치와 정성적 관찰을 구체적으로 연결하여 분석의 타당성을 높여야 합니다.</p>
+                </div>
+            `;
+        } else if (eval.quality === 'fair') {
+            opinionHTML += `
+                <div class="expert-critique moderate">
+                    <strong>📊 중립적 평가:</strong>
+                    <p>분석의 방향은 적절하나, 더욱 구체적인 근거와 예시가 필요합니다. 
+                    ${subject} 과목의 특성과 학생의 데이터를 더욱 깊이 있게 연결하여 분석의 설득력을 높일 수 있습니다.</p>
+                </div>
+            `;
+        } else {
+            opinionHTML += `
+                <div class="expert-critique positive">
+                    <strong>✅ 긍정적 평가:</strong>
+                    <p>데이터를 바탕으로 한 체계적인 분석이 이루어졌습니다. 다만, ${subject} 과목 특성을 더욱 명확히 반영한다면 
+                    더욱 전문적인 분석이 될 것입니다.</p>
+                </div>
+            `;
+        }
+        
+        opinionHTML += `</div>`;
+    });
+    
+    opinionHTML += `</div>`;
+    
+    // 2. 전문가 관점에서의 종합 분석
+    const expertAnalysis = getEducationalAnalysis(caseId);
+    opinionHTML += `
+        <div class="opinion-section">
+            <h4>2. 전문가 종합 분석</h4>
+            <div class="expert-analysis-content">
+                ${expertAnalysis.content}
+            </div>
+        </div>
+    `;
+    
+    // 3. 구체적인 개선 방안 및 제언
+    opinionHTML += `
+        <div class="opinion-section">
+            <h4>3. 전문가 제언: ${subject} 과목 특성을 고려한 지원 방안</h4>
+            <div class="recommendations">
+    `;
+    
+    const recommendations = getSubjectSpecificRecommendations(caseId, subject);
+    recommendations.forEach((rec, index) => {
+        opinionHTML += `
+            <div class="recommendation-item">
+                <strong>${index + 1}. ${rec.title}</strong>
+                <p>${rec.content}</p>
+            </div>
+        `;
+    });
+    
+    opinionHTML += `
+            </div>
+        </div>
+        <div class="opinion-footer">
+            <p><strong>결론:</strong> 학생 개별 특성과 ${subject} 과목의 특성을 종합적으로 고려한 맞춤형 지원 방안의 수립이 필요합니다. 
+            단순한 문제 해결보다는 학생의 잠재력을 발휘할 수 있는 환경 조성에 중점을 두어야 합니다.</p>
+        </div>
+        </div>
+    `;
+    
+    return opinionHTML;
+}
+
+// 과목별 맞춤형 제언 생성
+function getSubjectSpecificRecommendations(caseId, subject) {
+    const recommendations = {
+        'A': [
+            {
+                title: '학습 목적 인식 강화',
+                content: `${subject} 과목의 실생활 활용 사례를 게임적 요소와 연결하여 학습 동기를 자극할 수 있습니다. 
+                프로젝트 기반 학습을 통해 즉각적인 피드백과 성취감을 제공하세요.`
+            },
+            {
+                title: '학습 환경 개선',
+                content: `방과 후 관리 부재를 보완하기 위해 학교 내 ${subject} 과목 학습 지원 프로그램을 운영하고, 
+                AI 기반 맞춤형 학습 콘텐츠를 활용하여 학생의 흥미를 유지하세요.`
+            }
+        ],
+        'B': [
+            {
+                title: '시험 불안 완화 전략',
+                content: `${subject} 과목에서 실수를 학습의 과정으로 인식하도록 하는 문화를 조성하세요. 
+                형성평가와 과정 중심 평가를 강화하여 완벽주의 성향을 완화합니다.`
+            },
+            {
+                title: '학습 전략 최적화',
+                content: `${subject} 과목의 기본 개념 이해도가 높다는 강점을 활용하여, 
+                응용 문제 해결을 위한 단계적 접근법을 지도하세요.`
+            }
+        ],
+        'C': [
+            {
+                title: '협업 학습 활용',
+                content: `${subject} 과목의 조별 활동을 확대하고, 협업 과정에서 개별 학습 능력도 함께 향상시킬 수 있는 
+                하이브리드 학습 모델을 도입하세요.`
+            },
+            {
+                title: '개별 학습 동기 부여',
+                content: `${subject} 과목의 개별 과제를 협업 활동의 연장선으로 설계하여, 
+                사회적 학습 특성을 활용한 개별 학습 습관 형성을 지원하세요.`
+            }
+        ],
+        'D': [
+            {
+                title: '평가 방식 다양화',
+                content: `${subject} 과목에서 포트폴리오, 프로젝트, 자기평가 등 다양한 평가 방식을 도입하여 
+                창의적 재능을 인정하고 평가하세요.`
+            },
+            {
+                title: '표현 방식 다양화',
+                content: `${subject} 과목의 답안 작성 방식을 다양화하여, 
+                정형화된 답안뿐만 아니라 창의적인 표현을 인정하는 평가 기준을 마련하세요.`
+            }
+        ],
+        'E': [
+            {
+                title: '메타인지 전략 교육',
+                content: `${subject} 과목의 학습 전략을 체계적으로 교육하고, 
+                핵심 개념 파악을 위한 정보 처리 전략을 습득하도록 지원하세요.`
+            },
+            {
+                title: '효율적 학습 방법 안내',
+                content: `${subject} 과목에서 노트 필기의 질을 높이고, 
+                시간 대비 학습 효율을 개선할 수 있는 구체적인 학습 방법을 제시하세요.`
+            }
+        ],
+        'F': [
+            {
+                title: '디지털 리터러시 교육',
+                content: `${subject} 과목의 디지털 학습 환경에 점진적으로 적응할 수 있도록 
+                기초 디지털 기기 사용법과 학습 플랫폼 활용법을 체계적으로 교육하세요.`
+            },
+            {
+                title: '하이브리드 학습 환경',
+                content: `${subject} 과목에서 오프라인과 온라인을 연결하는 하이브리드 학습 환경을 구축하여, 
+                오프라인에서의 강점을 온라인 학습에도 연결할 수 있도록 지원하세요.`
+            }
+        ]
+    };
+    
+    return recommendations[caseId] || [];
+}
+
 // 분석 처리 및 피드백
 function processAnalysis() {
     const answer1 = document.getElementById('answer1').value.trim();
@@ -640,131 +1073,111 @@ function processAnalysis() {
         return;
     }
     
-    // 각 답변의 품질 평가
-    const eval1 = evaluateAnswerQuality(answer1, 'question1');
-    const eval2 = evaluateAnswerQuality(answer2, 'question2');
-    const eval3 = evaluateAnswerQuality(answer3, 'question3');
-    
-    const evaluations = [
-        { answer: answer1, eval: eval1, question: 1, label: '학습 저해 요인' },
-        { answer: answer2, eval: eval2, question: 2, label: '숨겨진 강점/잠재력' },
-        { answer: answer3, eval: eval3, question: 3, label: '데이터 연결성' }
+    const answers = [
+        { answer: answer1, question: 1 },
+        { answer: answer2, question: 2 },
+        { answer: answer3, question: 3 }
     ];
     
-    // 전체 품질 평가
-    const allGood = evaluations.every(e => e.eval.quality === 'good');
-    const hasPoor = evaluations.some(e => e.eval.quality === 'poor');
+    // 전문적인 교육학자 의견서 생성
+    const expertOpinion = generateExpertOpinion(answers);
     
     const feedback = document.getElementById('analysis-feedback');
-    let feedbackHTML = '<h3>📋 분석 피드백</h3>';
-    
-    // 각 답변별 피드백
-    evaluations.forEach((item, index) => {
-        const guide = getAnalysisGuide(item.question);
-        const qualityClass = item.eval.quality === 'good' ? 'good' : item.eval.quality === 'fair' ? 'fair' : 'poor';
-        const qualityIcon = item.eval.quality === 'good' ? '✅' : item.eval.quality === 'fair' ? '⚠️' : '❌';
-        const qualityText = item.eval.quality === 'good' ? '양호' : item.eval.quality === 'fair' ? '보통' : '부족';
-        
-        feedbackHTML += `
-            <div class="answer-feedback ${qualityClass}">
-                <p><strong>${index + 1}. ${item.label} ${qualityIcon} (${qualityText})</strong></p>
-                <p class="user-answer">${item.answer || '(답변 없음)'}</p>
-        `;
-        
-        if (item.eval.quality === 'poor') {
-            feedbackHTML += `
-                <div class="improvement-guide">
-                    <p><strong>💡 개선 제안:</strong></p>
-                    <p>${item.eval.reason}</p>
-                    <p>${guide.poor || ''}</p>
-                </div>
-            `;
-        } else if (item.eval.quality === 'fair') {
-            feedbackHTML += `
-                <div class="improvement-guide">
-                    <p><strong>💡 개선 제안:</strong></p>
-                    <p>${item.eval.reason}</p>
-                    <p>${guide.fair || ''}</p>
-                </div>
-            `;
-        } else {
-            feedbackHTML += `
-                <div class="positive-feedback">
-                    <p>데이터를 바탕으로 한 구체적인 분석이 잘 이루어졌습니다.</p>
-                </div>
-            `;
-        }
-        
-        feedbackHTML += `</div>`;
-    });
-    
-    // 교육학자 관점 분석 추가
-    const educationalAnalysis = getEducationalAnalysis(currentCase.id);
-    feedbackHTML += `
-        <div class="educational-analysis">
-            <h4>🎓 ${educationalAnalysis.title}</h4>
-            <div class="analysis-content">
-                ${educationalAnalysis.content}
-            </div>
-        </div>
-    `;
-    
-    // 전체 피드백
-    if (hasPoor) {
-        feedbackHTML += `
-            <div class="overall-feedback poor-feedback">
-                <h4>📌 전체 피드백</h4>
-                <p>일부 답변이 부족합니다. 데이터를 다시 살펴보시고, 각 항목에 대해 구체적이고 교육학적 관점에서 분석해보세요.</p>
-                <p><strong>교육학적 분석을 위한 제안:</strong></p>
-                <ul>
-                    <li>정량 데이터와 정성 데이터를 모두 고려하여 종합적으로 분석하세요.</li>
-                    <li>학생의 문제점뿐만 아니라 강점과 잠재력도 함께 파악하세요.</li>
-                    <li>데이터 간의 일관성이나 모순점을 찾아 학생을 다각도로 이해하세요.</li>
-                </ul>
-                <button id="revise-answers" class="btn btn-secondary" style="margin-top: 15px;">답변 수정하기</button>
-            </div>
-        `;
-    } else if (allGood) {
-        feedbackHTML += `
-            <div class="overall-feedback good-feedback">
-                <h4>✅ 전체 피드백</h4>
-                <p>훌륭한 분석입니다! 데이터를 종합적으로 고려하여 학생의 특성을 잘 파악하셨네요.</p>
-                <p>교육학적 관점에서 학생의 학습 저해 요인, 강점, 그리고 데이터의 일관성을 체계적으로 분석하셨습니다.</p>
-                <p style="margin-top: 10px;">위의 교육학자 관점 분석과 비교해보시면 더욱 깊이 있는 이해가 가능할 것입니다.</p>
-            </div>
-        `;
-    } else {
-        feedbackHTML += `
-            <div class="overall-feedback fair-feedback">
-                <h4>📝 전체 피드백</h4>
-                <p>분석이 잘 진행되고 있습니다. 일부 항목을 더 구체화하면 더욱 완성도 높은 분석이 될 것입니다.</p>
-                <p>위의 개선 제안과 교육학자 관점 분석을 참고하여 답변을 보완해보세요.</p>
-            </div>
-        `;
-    }
-    
-    feedback.innerHTML = feedbackHTML;
+    feedback.innerHTML = expertOpinion;
     feedback.classList.remove('hidden');
-    
-    // 답변 수정 버튼 이벤트 리스너
-    const reviseBtn = document.getElementById('revise-answers');
-    if (reviseBtn) {
-        reviseBtn.addEventListener('click', () => {
-            feedback.classList.add('hidden');
-            document.getElementById('answer1').disabled = false;
-            document.getElementById('answer2').disabled = false;
-            document.getElementById('answer3').disabled = false;
-            // 선생님 선정 결과는 유지
-        });
-    }
     
     // 최종 메시지 표시
     const finalMessage = document.getElementById('final-message');
     finalMessage.innerHTML = `
-        <p>✨ 분석이 완료되었습니다!</p>
-        <p style="margin-top: 15px; font-size: 1.1em;">선생님의 따뜻한 시선이 학생을 성장시킵니다. 💙</p>
+        <p>✨ 전문가 의견서가 제시되었습니다!</p>
+        <p style="margin-top: 15px; font-size: 1.1em;">교육학적 관점에서의 날카로운 분석을 참고하여 학생 지원 방안을 수립해보세요. 💙</p>
     `;
     finalMessage.classList.remove('hidden');
+}
+
+// 3단계: CASE 정보 및 데이터 표시
+function displayStep3Info() {
+    // CASE 설명 표시
+    const caseInfoDiv = document.getElementById('step3-case-info');
+    let caseInfoHTML = `
+        <div class="step3-case-content">
+            <h3>📖 CASE 설명</h3>
+            <div class="case-content">
+                <h4>Case ${currentCase.id}. ${currentCase.name} (${currentCase.grade}, ${currentCase.gender})${selectedSubject ? ` - ${selectedSubject} 과목` : ''}</h4>
+                <p><strong>배경:</strong> ${currentCase.background}</p>
+                <p><strong>교사의 주요 고민:</strong> ${currentCase.concern}</p>
+            </div>
+        </div>
+    `;
+    caseInfoDiv.innerHTML = caseInfoHTML;
+    
+    // 데이터 표시 (2단계와 동일한 형식)
+    const dataInfoDiv = document.getElementById('step3-data-info');
+    
+    let quantitativeHTML = `<div class="data-section"><h3>📈 정량 데이터</h3><table class="data-table"><thead><tr><th>항목</th><th>학생 수치</th><th>평균</th></tr></thead><tbody>`;
+    
+    // LMS 접속률
+    if (currentCase.quantitative.lms_access) {
+        quantitativeHTML += `<tr><td>LMS 접속률</td><td><span class="highlight">${currentCase.quantitative.lms_access.value}${currentCase.quantitative.lms_access.unit}</span></td><td>${currentCase.quantitative.lms_access.average}${currentCase.quantitative.lms_access.unit}</td></tr>`;
+    }
+    
+    // 과제 제출률
+    if (currentCase.quantitative.assignment_submit) {
+        quantitativeHTML += `<tr><td>과제 제출률</td><td><span class="highlight">${currentCase.quantitative.assignment_submit.value}${currentCase.quantitative.assignment_submit.unit}</span></td><td>${currentCase.quantitative.assignment_submit.average}${currentCase.quantitative.assignment_submit.unit}</td></tr>`;
+    }
+    
+    // 형성평가 점수 추이
+    if (currentCase.quantitative.formative_scores) {
+        quantitativeHTML += `<tr><td colspan="3"><strong>형성평가 점수 추이:</strong></td></tr>`;
+        currentCase.quantitative.formative_scores.forEach(item => {
+            quantitativeHTML += `<tr><td>${item.month}</td><td><span class="highlight">${item.score}점</span></td><td>-</td></tr>`;
+        });
+    }
+    
+    // 기타 정량 데이터
+    if (currentCase.quantitative.problem_time) {
+        quantitativeHTML += `<tr><td>문제 풀이 소요 시간</td><td><span class="highlight">${currentCase.quantitative.problem_time.value}</span></td><td>${currentCase.quantitative.problem_time.average}</td></tr>`;
+    }
+    if (currentCase.quantitative.accuracy) {
+        quantitativeHTML += `<tr><td>정답률</td><td><span class="highlight">${currentCase.quantitative.accuracy.value}${currentCase.quantitative.accuracy.unit}</span></td><td>${currentCase.quantitative.accuracy.average}${currentCase.quantitative.accuracy.unit}</td></tr>`;
+    }
+    if (currentCase.quantitative.group_activity) {
+        quantitativeHTML += `<tr><td>조별 활동 참여도</td><td><span class="highlight">${currentCase.quantitative.group_activity.value}${currentCase.quantitative.group_activity.unit}</span></td><td>${currentCase.quantitative.group_activity.average}${currentCase.quantitative.group_activity.unit}</td></tr>`;
+    }
+    if (currentCase.quantitative.individual_test) {
+        quantitativeHTML += `<tr><td>개별 평가 점수</td><td><span class="highlight">${currentCase.quantitative.individual_test.value}${currentCase.quantitative.individual_test.unit}</span></td><td>${currentCase.quantitative.individual_test.average}${currentCase.quantitative.individual_test.unit}</td></tr>`;
+    }
+    if (currentCase.quantitative.creative_project) {
+        quantitativeHTML += `<tr><td>창의 프로젝트 점수</td><td><span class="highlight">${currentCase.quantitative.creative_project.value}${currentCase.quantitative.creative_project.unit}</span></td><td>${currentCase.quantitative.creative_project.average}${currentCase.quantitative.creative_project.unit}</td></tr>`;
+    }
+    if (currentCase.quantitative.written_test) {
+        quantitativeHTML += `<tr><td>필기 평가 점수</td><td><span class="highlight">${currentCase.quantitative.written_test.value}${currentCase.quantitative.written_test.unit}</span></td><td>${currentCase.quantitative.written_test.average}${currentCase.quantitative.written_test.unit}</td></tr>`;
+    }
+    if (currentCase.quantitative.study_time) {
+        quantitativeHTML += `<tr><td>일일 학습 시간</td><td><span class="highlight">${currentCase.quantitative.study_time.value}</span></td><td>${currentCase.quantitative.study_time.average}</td></tr>`;
+    }
+    if (currentCase.quantitative.test_score) {
+        quantitativeHTML += `<tr><td>평가 점수</td><td><span class="highlight">${currentCase.quantitative.test_score.value}${currentCase.quantitative.test_score.unit}</span></td><td>${currentCase.quantitative.test_score.average}${currentCase.quantitative.test_score.unit}</td></tr>`;
+    }
+    if (currentCase.quantitative.online_attendance) {
+        quantitativeHTML += `<tr><td>온라인 수업 출석률</td><td><span class="highlight">${currentCase.quantitative.online_attendance.value}${currentCase.quantitative.online_attendance.unit}</span></td><td>${currentCase.quantitative.online_attendance.average}${currentCase.quantitative.online_attendance.unit}</td></tr>`;
+    }
+    if (currentCase.quantitative.offline_participation) {
+        quantitativeHTML += `<tr><td>오프라인 수업 참여도</td><td><span class="highlight">${currentCase.quantitative.offline_participation.value}${currentCase.quantitative.offline_participation.unit}</span></td><td>${currentCase.quantitative.offline_participation.average}${currentCase.quantitative.offline_participation.unit}</td></tr>`;
+    }
+    
+    quantitativeHTML += '</tbody></table></div>';
+    
+    // 과목별 정성 데이터 생성
+    const qualitativeData = getQualitativeDataBySubject(currentCase, selectedSubject);
+    
+    let qualitativeHTML = '<div class="data-section"><h3>📝 정성 데이터</h3><ul class="data-list">';
+    qualitativeData.forEach(item => {
+        qualitativeHTML += `<li><strong>(${item.type})</strong> ${item.content}</li>`;
+    });
+    qualitativeHTML += '</ul></div>';
+    
+    dataInfoDiv.innerHTML = quantitativeHTML + qualitativeHTML;
 }
 
 // 단계 이동
@@ -776,15 +1189,14 @@ function goToStep(step) {
     if (step === 2) {
         displayStep2();
         document.getElementById('step2-content').classList.remove('hidden');
+        // 배경 변경 (2단계: 교실 느낌)
+        document.body.className = 'step-2';
     } else if (step === 3) {
         // 3단계 진입 시 초기 상태 설정
+        displayStep3Info(); // CASE 정보 및 데이터 표시
         document.getElementById('step3-content').classList.remove('hidden');
-        document.getElementById('teacher-selection-section').classList.remove('hidden');
-        document.getElementById('answer-section').classList.add('hidden');
-        document.getElementById('selected-teachers').classList.add('hidden');
-        document.getElementById('teacher-selection-animation').classList.add('hidden');
-        document.getElementById('select-teachers-btn').disabled = false;
-        document.getElementById('select-teachers-btn').textContent = '🎲 선생님 선정하기';
+        // 배경 변경 (3단계: 학교 느낌)
+        document.body.className = 'step-3';
     }
     
     currentStep = step;
